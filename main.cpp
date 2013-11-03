@@ -78,57 +78,80 @@
 //   satisfying the following invariants:
 //     * 0 <= A < R
 //     * 2^15 <= R < 2^16
-//     * The high bit of R is 1 (i.e. R >= 2^15). This condition guarantees
-//       that A can take on at least 2^(16-1) values, which provides a
-//       precision guarantee.
+//       - i.e. The high bit of R is a "1". This condition guarantees that
+//         A can take on at least 2^(16-1) values, which provides a precision
+//         guarantee.
 //     * Whenever you shift A to the left, you must shift in corresponding
 //       bits from V (shifting A to the left is done during
 //       "renormalization").
 //       In the terminology developed below, this consdition is equivalent
-//       to: V - Z = InfPrec(A) + epsilon, where epsilon < InfPrec(1).
+//       to: V - L = InfPrec(A) + epsilon, where epsilon < InfPrec(1).
 // Graphically:
 //   [--------|---------------)
 //   0        A        2^15 < R < 2^16
 //
-// This range [0,R) corresponds to an interval on the (abitrary-precision)
-// real interval [0,1). Throughout the decoding process, this
+// This range [0,R) corresponds to an interval on the (arbitrary-precision)
+// real interval [0.,1.). Throughout the decoding process, this
 // correspondence changes, as will be exhibited in the diagrams throughout.
 // We will use the notation InfPrec(X), where X is a fixed-precision number
 // like R or A, to represent the corresponding number in the
-// arbitrary-precision interval [0,1).
+// arbitrary-precision interval [0.,1.).
+// Personally, I find it to be absolutely crucial to
+// 1. Always keep a strong mental distinction between arbitrary-precision
+//    numbers used for a "theoretical" description, and the
+//    finite-precision numbers used for practical implementation.
+//    - Whenever you see a radix point, it indicates an arbitrary-precision
+//      real number. Numbers without radix points represent
+//      finite-precision integers (I may slip up in some cases; feedback is
+//      welcome).
+//      Throughout this discussion, they are generally assumed to be
+//      essentially `uint16_t`'s, and their contents correspond to values
+//      representative of the actual values in a practical implementation.
+// 2. Always keep in mind the correspondence between the finite-precision
+//    numbers used for practical implementation and the arbitrary-precision
+//    numbers they correspond to.
+//    - This correspondence generally boils down to aligning the
+//      fixed-precision bits with an infinite binary fraction so that the
+//      corresponding bits line up. I try to show this in my diagrams.
+// 3. Keep straight when variables satisfy stated invariants, and when they
+//    are in the process of being updated and the invariants may not hold.
+//    - The "primed" variables ("ascii"-ified as X') represent values that
+//      are in the process of being updated and do not satisfy invariants.
+//      The "tilde" variables ("ascii"-ified as X~) represent variables
+//      that have new values that satisfy the invariants; the reassignment
+//      of the "tilde" variables to the "plain" variables happens all at
+//      once to indicate exactly where the state change occurs.
 //
 // The initial state of the decoder is such that InfPrec(R) = 1.0, that is,
 // the finite-precision interval [0,R) corresponds to the
 // arbitrary-precision real interval [0.00...,1.00...):
 //         R  = 1 000 0000 0000 0000
-// InfPrec(R) = 1.000 0000 0000 0000 = R * 2^(-(16-1))
+// InfPrec(R) = 1.000 0000 0000 0000
 //         A  = 0 vvv vvvv vvvv vvvv
-// InfPrec(A) = 0.vvv vvvv vvvv vvvv = A * 2^(-(16-1))
+// InfPrec(A) = 0.vvv vvvv vvvv vvvv
 //         V  = 0.vvv vvvv vvvv vvvvvvvvv...
-//         Z  = 0.000 0000 0000 000000000... = InfPrec(0)
-//              ^
-//              `-- k = 0 and points here.
+//         L  = 0.000 0000 0000 000000000... = InfPrec(0)
 //              NOTE: The grouping of digits is purely cosmetic, and does not
 //              imply any sort of "alignment". e.g. in `0.000...00 xxxx`, the
 //              number of leading 0's is arbitrary, and not required to be a
 //              multiple of 4.
-// The number Z satisfies the relation "V - Z = InfPrec(A) + epsilon",
+// The number L satisfies the relation "V - L = InfPrec(A) + epsilon",
 // where "epsilon < InfPrec(1)", which basically means "the only nonzero
-// bits of epsilon are to the right of our 16-bit fixed-precision window",
-// as represented in this diagram of the "general" state of the decoder
-// when all the invariants are satisfied:
+// bits of epsilon are to the right of our 16-bit fixed-precision subview".
+// This is represented in the following diagram of the "general" state of
+// the decoder when all the invariants are satisfied:
 //         R  =            1rrr rrrr rrrr rrrr
 // InfPrec(R) = 0.000...00 1rrr rrrr rrrr rrrr
 //         A  =            aaaa aaaa aaaa aaaa
 // InfPrec(A) = 0.000...00 aaaa aaaa aaaa aaaa 000...
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
-//         Z  = 0.vvv...vv zzzz zzzz zzzz zzzz 000... = InfPrec(0)
+//         L  = 0.vvv...vv llll llll llll llll 000... = InfPrec(0)
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvv...
-// In general, the bits z in the above diagram are nonzero (see the
+// In general, the bits l in the above diagram are nonzero (see the
 // description below of how A and R are updated to understand why; consider
 // s_K == 1 and A == aaaa...0001).
-// Note that InfPrec([0,R)) = [Z, Z + InfPrec(R)) represents a subrange of
+// Note that InfPrec([0,R)) = [L, L + InfPrec(R)) represents a subrange of
 // the infinite precision range [0,1).
 //
 // Decoding a range:
@@ -167,22 +190,19 @@
 //   However, this update may break the invariant set forth above that the
 //   high bit of R must be 1. A typical case may be:
 //         R  =            1rrr rrrr rrrr rrrr
-//         R' =            0001 ssss ssss ssss (Unrelated to the s_i. Oops!)
-//         A  =            aaaa aaaa aaaa aaaa
+//         R' =            0001 ssss ssss ssss (Bad notation: these `s`'s are
+//         A  =            aaaa aaaa aaaa aaaa  unrelated to the s_i. Oops!)
 //         A' =            000b bbbb bbbb bbbb
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
-//         Z  = 0.vvv...vv zzzz zzzz zzzz zzzz 000... = InfPrec(0)
-//         Z' = 0.vvv...vv vvvz zzzz zzzz zzzz 000... = Z + InfPrec(s_K)
+//         L  = 0.vvv...vv llll llll llll llll 000... = InfPrec(0)
+//         L' = 0.vvv...vv vvvl llll llll llll 000... = L + InfPrec(s_K)
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvv...
-//                         ^
-//                         `-- k points here.
 //                         Note that the leading bit of R' is not 1! The
 //                         invariants do not hold!
 //  To restore the invariants, we must:
-//    * shift `R'` to the left to form R~,              Side note:       ~  ~  ~
-//    * "shift in bits" from V into A' to form A~       typographically: R, A, k
-//    * add the shift amount to k to form k~
+//    * shift `R'` to the left to form R~,              Side note:       ~  ~
+//    * "shift in bits" from V into A' to form A~       typographically: R, A
 //  (All these X~ will be come just X for the next decoding step).
 //  The results is that (say there are 3 leading zeros in R'):
 //         R  =            1rrr rrrr rrrr rrrr
@@ -192,23 +212,18 @@
 //         A' =            000b bbbb bbbb bbbb
 //         A~ =               b bbbb bbbb bbbb vvv
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
-//         Z  = 0.vvv...vv zzzz zzzz zzzz zzzz 000... = InfPrec(0)
-//         Z' = 0.vvv...vv vvvz zzzz zzzz zzzz 000... = Z + InfPrec(s_K)
-//         Z~ = 0.vvv...vv vvvz zzzz zzzz zzzz 000... = Z' (Why?)
+//         L  = 0.vvv...vv llll llll llll llll 000... = InfPrec(0)
+//         L' = 0.vvv...vv vvvl llll llll llll 000... = L + InfPrec(s_K)
+//         L~ = 0.vvv...vv vvvl llll llll llll 000... = L' (Why?)
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvvvvv... < InfPrec(1)
 // InfPrec(1~)= 0.000...00 0000 0000 0000 0000 001000...
 //   epsilon~ = 0.000...00 0000 0000 0000 0000 000vvv... < InfPrec(1~)
-//                         ^  ^
-//                         |  `-- k~ points here.
-//                         `------ k points here.
-//            NOTE: Z' = Z~ because the low bits of A correspond exactly
+//            NOTE: L' = L~ because the low bits of A correspond exactly
 //            with the corresponding bits of V.
 //   The "tilde" values now satisfy our invariants and we set:
 //     R := R~
 //     A := A~
-//     There is no variable `k` in the program, but notionally:
-//     k := k~ (this changes the meaning of InfPrec!)
 //   Basically, we make sure that the condition "the highest bit of R is 1"
 //   is true by redefining what InfPrec means, which basically corresponds
 //   to shifting our subview further to the right (or shifting the values
@@ -445,8 +460,3 @@
 // General Note: everything here depends *crucially* on the encoder doing the
 // range expansion and renormalization in *exactly* the same way.
 //
-
-// Feedback:
-// Biggest point of confusion is InfPrec (which I had defined wrong! it is
-// not just a multiplication by 2^(-(k-1))).
-// Also Z, which corresponds to what in the literature is called L.
