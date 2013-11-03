@@ -94,8 +94,10 @@
 // real interval [0.,1.). Throughout the decoding process, this
 // correspondence changes, as will be exhibited in the diagrams throughout.
 // We will use the notation InfPrec(X), where X is a fixed-precision number
-// like R or A, to represent the corresponding number in the
-// arbitrary-precision interval [0.,1.).
+// like R or A, to represent the difference between the corresponding
+// number in the arbitrary-precision interval [0.,1.) and the bottom of
+// said interval (which is denoted by the arbitrary-precision number L for
+// "low").
 // Personally, I find it to be absolutely crucial to
 // 1. Always keep a strong mental distinction between arbitrary-precision
 //    numbers used for a "theoretical" description, and the
@@ -130,7 +132,7 @@
 //         A  = 0 vvv vvvv vvvv vvvv
 // InfPrec(A) = 0.vvv vvvv vvvv vvvv
 //         V  = 0.vvv vvvv vvvv vvvvvvvvv...
-//         L  = 0.000 0000 0000 000000000... = InfPrec(0)
+//         L  = 0.000 0000 0000 000000000...
 //              NOTE: The grouping of digits is purely cosmetic, and does not
 //              imply any sort of "alignment". e.g. in `0.000...00 xxxx`, the
 //              number of leading 0's is arbitrary, and not required to be a
@@ -145,7 +147,7 @@
 //         A  =            aaaa aaaa aaaa aaaa
 // InfPrec(A) = 0.000...00 aaaa aaaa aaaa aaaa 000...
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
-//         L  = 0.vvv...vv llll llll llll llll 000... = InfPrec(0)
+//         L  = 0.vvv...vv llll llll llll llll 000...
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvv...
 // In general, the bits l in the above diagram are nonzero (see the
@@ -194,7 +196,7 @@
 //         A  =            aaaa aaaa aaaa aaaa  unrelated to the s_i. Oops!)
 //         A' =            000b bbbb bbbb bbbb
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
-//         L  = 0.vvv...vv llll llll llll llll 000... = InfPrec(0)
+//         L  = 0.vvv...vv llll llll llll llll 000... =
 //         L' = 0.vvv...vv vvvl llll llll llll 000... = L + InfPrec(s_K)
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvv...
@@ -212,7 +214,7 @@
 //         A' =            000b bbbb bbbb bbbb
 //         A~ =               b bbbb bbbb bbbb vvv
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
-//         L  = 0.vvv...vv llll llll llll llll 000... = InfPrec(0)
+//         L  = 0.vvv...vv llll llll llll llll 000... =
 //         L' = 0.vvv...vv vvvl llll llll llll 000... = L + InfPrec(s_K)
 //         L~ = 0.vvv...vv vvvl llll llll llll 000... = L' (Why?)
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
