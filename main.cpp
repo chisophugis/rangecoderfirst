@@ -81,7 +81,7 @@
 // easily), and is represented as the following:
 //
 // R = 1rrr rrrr rrrr rrrr (i.e. `rng` in the Daala source)
-// D = dddd dddd dddd dddd (i.e. `dif >> 16` in the Dddld source)
+// D = dddd dddd dddd dddd (i.e. `dif >> 16` in the Daala source)
 //   satisfying the following invariants:
 //     * 0 <= D < R
 //     * 2^15 <= R < 2^16
