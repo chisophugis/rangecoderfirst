@@ -65,6 +65,12 @@
 // interpreted as a base-2 fraction V = 0.vvv...vvv00... (where the v's
 // represent arbitrary bit values). The name `V` just stands for "value".
 //
+// (`V` and other notations are generally taken from:
+//       Moffat, A.; Neal, R.; Witten, Ian H., "Arithmetic coding
+//       revisited," Data Compression Conference, 1995. DCC '95.
+//       Proceedings pp.202,211, 28-30 Mar 1995
+// )
+//
 // Obviously we do not want to do arithmetic on arbitrarily long strings of
 // bits, so instead we operate on a finite-precision "subview" of V (I
 // would like to use the word "window", but that already has a slightly
