@@ -80,27 +80,27 @@
 // easily), and is represented as the following:
 //
 // R = 1rrr rrrr rrrr rrrr (i.e. `rng` in the Daala source)
-// A = aaaa aaaa aaaa aaaa (i.e. `dif >> 16` in the Daala source)
+// D = dddd dddd dddd dddd (i.e. `dif >> 16` in the Dddld source)
 //   satisfying the following invariants:
-//     * 0 <= A < R
+//     * 0 <= D < R
 //     * 2^15 <= R < 2^16
 //       - i.e. The high bit of R is a "1". This condition guarantees that
-//         A can take on at least 2^(16-1) values, which provides a precision
+//         D can take on at least 2^(16-1) values, which provides a precision
 //         guarantee.
-//     * Whenever you shift A to the left, you must shift in corresponding
-//       bits from V (shifting A to the left is done during
+//     * Whenever you shift D to the left, you must shift in corresponding
+//       bits from V (shifting D to the left is done during
 //       "renormalization").
-//       In the terminology developed below, this consdition is equivalent
-//       to: V - L = InfPrec(A) + epsilon, where epsilon < InfPrec(1).
+//       In the terminology developed below, this condition is equivalent
+//       to: V - L = InfPrec(D) + epsilon, where epsilon < InfPrec(1).
 // Graphically:
 //   [--------|---------------)
-//   0        A        2^15 < R < 2^16
+//   0        D        2^15 < R < 2^16
 //
 // This range [0,R) corresponds to an interval on the (arbitrary-precision)
 // real interval [0.,1.). Throughout the decoding process, this
 // correspondence changes, as will be exhibited in the diagrams throughout.
 // We will use the notation InfPrec(X), where X is a fixed-precision number
-// like R or A, to represent the difference between the corresponding
+// like R or D, to represent the difference between the corresponding
 // number in the arbitrary-precision interval [0.,1.) and the bottom of
 // said interval (which is denoted by the arbitrary-precision number L for
 // "low").
@@ -135,30 +135,30 @@
 // arbitrary-precision real interval [0.00...,1.00...):
 //         R  = 1 000 0000 0000 0000
 // InfPrec(R) = 1.000 0000 0000 0000
-//         A  = 0 vvv vvvv vvvv vvvv
-// InfPrec(A) = 0.vvv vvvv vvvv vvvv
+//         D  = 0 vvv vvvv vvvv vvvv
+// InfPrec(D) = 0.vvv vvvv vvvv vvvv
 //         V  = 0.vvv vvvv vvvv vvvvvvvvv...
 //         L  = 0.000 0000 0000 000000000...
 //              NOTE: The grouping of digits is purely cosmetic, and does not
 //              imply any sort of "alignment". e.g. in `0.000...00 xxxx`, the
 //              number of leading 0's is arbitrary, and not required to be a
 //              multiple of 4.
-// The number L satisfies the relation "V - L = InfPrec(A) + epsilon",
+// The number L satisfies the relation "V - L = InfPrec(D) + epsilon",
 // where "epsilon < InfPrec(1)", which basically means "the only nonzero
 // bits of epsilon are to the right of our 16-bit fixed-precision subview".
 // This is represented in the following diagram of the "general" state of
 // the decoder when all the invariants are satisfied:
 //         R  =            1rrr rrrr rrrr rrrr
 // InfPrec(R) = 0.000...00 1rrr rrrr rrrr rrrr
-//         A  =            aaaa aaaa aaaa aaaa
-// InfPrec(A) = 0.000...00 aaaa aaaa aaaa aaaa 000...
+//         D  =            dddd dddd dddd dddd
+// InfPrec(D) = 0.000...00 dddd dddd dddd dddd 000...
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
 //         L  = 0.vvv...vv llll llll llll llll 000...
 // InfPrec(1) = 0.000...00 0000 0000 0000 0001 000...
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvv...
 // In general, the bits l in the above diagram are nonzero (see the
-// description below of how A and R are updated to understand why; consider
-// s_K == 1 and A == aaaa...0001).
+// description below of how D and R are updated to understand why; consider
+// s_K == 1 and D == dddd...0001).
 // Note that InfPrec([0,R)) = [L, L + InfPrec(R)) represents a subrange of
 // the infinite precision range [0,1).
 //
@@ -176,7 +176,7 @@
 //     0=s_0      s_1      s_2      ...   s_{N-1}      R=s_N
 //   (note that all of the intervals [s_i,s_{i+1}) are disjoint and
 //   nonempty).
-//   Then there is a unique K such that [s_K,s_{K+1}) contains A.
+//   Then there is a unique K such that [s_K,s_{K+1}) contains D.
 //   >>> The decoded value is K, which satisfies 0 <= K < N. <<<
 //   Now, as far as the user of the decoder is concerned, this is all that
 //   matters, since their symbol K has been decoded. However, the decoder
@@ -185,22 +185,22 @@
 // Renormalization:
 // ----------------
 //
-//   The first step of updating R and A is as follows:
+//   The first step of updating R and D is as follows:
 //     R' = s_{K+1} - s_K
-//     A' = A - s_K
-//     Note that we still have A' < R' since
-//         A' < R' <==> A' + s_K < R' + s_K <==> s_{K+1} < A"
+//     D' = D - s_K
+//     Note that we still have D' < R' since
+//         D' < R' <==> D' + s_K < R' + s_K <==> D < s_{K+1} (which is true)
 //     Graphically:
 //     [--------...--------|------------|--------------...---------)
 //     0=s_0    ...        s_K          s_{K+1}        ...         R
 //                         [------------)
-//                         0'     A'    R' = s_{K+1} - s_K
+//                         0'     D'    R' = s_{K+1} - s_K
 //   However, this update may break the invariant set forth above that the
 //   high bit of R must be 1. A typical case may be:
 //         R  =            1rrr rrrr rrrr rrrr
 //         R' =            0001 ssss ssss ssss (Bad notation: these `s`'s are
-//         A  =            aaaa aaaa aaaa aaaa  unrelated to the s_i. Oops!)
-//         A' =            000b bbbb bbbb bbbb
+//         D  =            dddd dddd dddd dddd  unrelated to the s_i. Oops!)
+//         D' =            000b bbbb bbbb bbbb
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
 //         L  = 0.vvv...vv llll llll llll llll 000... =
 //         L' = 0.vvv...vv vvvl llll llll llll 000... = L + InfPrec(s_K)
@@ -210,15 +210,15 @@
 //                         invariants do not hold!
 //  To restore the invariants, we must:
 //    * shift `R'` to the left to form R~,              Side note:       ~  ~
-//    * "shift in bits" from V into A' to form A~       typographically: R, A
+//    * "shift in bits" from V into D' to form D~       typographically: R, D
 //  (All these X~ will be come just X for the next decoding step).
 //  The results is that (say there are 3 leading zeros in R'):
 //         R  =            1rrr rrrr rrrr rrrr
 //         R' =            0001 ssss ssss ssss
 //         R~ =               1 ssss ssss ssss 000
-//         A  =            aaaa aaaa aaaa aaaa
-//         A' =            000b bbbb bbbb bbbb
-//         A~ =               b bbbb bbbb bbbb vvv
+//         D  =            dddd dddd dddd dddd
+//         D' =            000b bbbb bbbb bbbb
+//         D~ =               b bbbb bbbb bbbb vvv
 //         V  = 0.vvv...vv vvvv vvvv vvvv vvvv vvv...
 //         L  = 0.vvv...vv llll llll llll llll 000... =
 //         L' = 0.vvv...vv vvvl llll llll llll 000... = L + InfPrec(s_K)
@@ -227,15 +227,15 @@
 //   epsilon  = 0.000...00 0000 0000 0000 0000 vvvvvv... < InfPrec(1)
 // InfPrec(1~)= 0.000...00 0000 0000 0000 0000 001000...
 //   epsilon~ = 0.000...00 0000 0000 0000 0000 000vvv... < InfPrec(1~)
-//            NOTE: L' = L~ because the low bits of A correspond exactly
+//            NOTE: L' = L~ because the low bits of D correspond exactly
 //            with the corresponding bits of V.
 //   The "tilde" values now satisfy our invariants and we set:
 //     R := R~
-//     A := A~
+//     D := D~
 //   Basically, we make sure that the condition "the highest bit of R is 1"
 //   is true by redefining what InfPrec means, which basically corresponds
 //   to shifting our subview further to the right (or shifting the values
-//   of R~ and A~ to the left).
+//   of R~ and D~ to the left).
 //
 //  TODO: to avoid "destructive assignments" in the math, could use have a
 //  subscript "n" on everything indicating "that variable, after n symbols
@@ -247,7 +247,7 @@
 // ================================================================
 //
 // The above description focused a lot on the relationship of the
-// fixed-precision values R and A with notional infinite precision
+// fixed-precision values R and D with notional infinite precision
 // counterparts. In this section, we will not use InfPrec even once!
 //
 // The input to the range coder is a buffer of bytes, called V (this is a
@@ -268,15 +268,15 @@
 // * etc.
 // (Note: reading the bits like that would be quite naive)
 //
-// We use a type `Integer` to represent the types of the values R and A.
+// We use a type `Integer` to represent the types of the values R and D.
 // The type `Symbol` represents an integer holding the value of a decoded
 // symbol.
 //
 // The decoding procedure is as follows:
 //
-// * Subview represents a class with two fields, R and A, and whose
-//   instances *always* satisfy the invariants on R and A. It is passed
-//   around by value. If R and A are each 16 bits, then Subview will occupy
+// * Subview represents a class with two fields, R and D, and whose
+//   instances *always* satisfy the invariants on R and D. It is passed
+//   around by value. If R and D are each 16 bits, then Subview will occupy
 //   32 bits.
 // * Lo and Hi correspond to s_K and s_{K+1} in the description of the
 //   previous section. The process of computing these values in `findSymbol`
@@ -299,17 +299,17 @@
 // }
 //
 // The renormalization procedure follows immediately from the definitions
-// of R', A', R~, and A~:
+// of R', D', R~, and D~:
 //
 // SubView renormalizeDec(SubView SV, BitstreamReader &BR,
 //                        Integer Lo, Integer Hi) {
 //   Integer RPrime = Hi - Lo;
-//   Integer APrime = SV.A - Lo;
+//   Integer DPrime = SV.D - Lo;
 //   Integer LZCNT = lzcntNonZero(RPrime);
 //   // Note that BR.readBits(0) should be a nop.
 //   Integer RTilde = (RPrime << LZCNT);
-//   Integer ATilde = (APrime << LZCNT) | BR.readNBits(LZCNT);
-//   return SubView{RTilde, ATilde};
+//   Integer DTilde = (DPrime << LZCNT) | BR.readNBits(LZCNT);
+//   return SubView{RTilde, DTilde};
 // }
 //
 // (Implementation note: the core of the preceding function is essentially
@@ -394,7 +394,7 @@
 //
 // It is often useful to have the inverse operation so that computations
 // can be done in the "P/Q" space.
-// For example, A/R can be mapped into a fraction P/Q with one computation,
+// For example, D/R can be mapped into a fraction P/Q with one computation,
 // and this is used to search a CDF with denominator Q rather than
 // converting each value in the CDF to the form P'/R.
 // Such an inverse mapping is:
@@ -445,9 +445,9 @@
 // interest).
 //
 // This can also be interpreted as a FIFO of bits, where the first 16 bits
-// of the FIFO represent A, and forming A' from A corresponds to
-// subtracting Lo from the first 16 bits of the FIFO, and then "shifting A'
-// to the left" to form A~ corresponds to dropping the leading 0 bits from
+// of the FIFO represent D, and forming D' from D corresponds to
+// subtracting Lo from the first 16 bits of the FIFO, and then "shifting D'
+// to the left" to form D~ corresponds to dropping the leading 0 bits from
 // the FIFO.
 // This interpretation is likely to be useful for hardware implementations.
 // In this scheme R will have to be transported alongside the FIFO.
@@ -455,7 +455,7 @@
 // corresponds to the "tail" of this FIFO (all but the first 16 bits).
 //
 // (Note that Daala's current implementation effectively keeps a single
-// 32-bit word "dif = A:Buf" which corresponds to a Buf of only 16 bits.
+// 32-bit word "dif = D:Buf" which corresponds to a Buf of only 16 bits.
 // Daala's current implementation also refills the buffer one byte at a
 // time rather than using larger aligned loads).
 //
