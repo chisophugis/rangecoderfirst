@@ -41,8 +41,9 @@
 // next decoded symbol is 'b' again (if not, notice that 3/4 <= 0.11 < 1).
 // Typically, there is some contextual way for the decoder to know when to
 // stop; the decoder effectively goes through the motions of a very tight
-// synchronized ballet dance with the faraway encoder (see the next
-// paragraph), so this is not very difficult to arrange.
+// synchronized ballet dance with the encoder (see the next paragraph), so
+// arranging to know when decoding is finished is typically easy compared
+// to the other things that are synchronized.
 //
 // Many of the steps above required
 // 1. arbitrary precision arithmetic, and
