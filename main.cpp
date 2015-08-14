@@ -469,3 +469,15 @@
 // General Note: everything here depends *crucially* on the encoder doing the
 // range expansion and renormalization in *exactly* the same way.
 //
+
+// Range encoding
+//
+// L approaches the final value V from below. As bits of L settle (i.e.
+// they are known to be the same as the bits in the final value of V), they
+// are emitted into the output buffer (with the slight wrinkle of carry
+// propagation).
+//
+// XXX: Finish describing this!
+//
+// TODO: Talk about how we could have used L instead of D in the decoding
+// part, but using D makes it simpler and avoids carries.
